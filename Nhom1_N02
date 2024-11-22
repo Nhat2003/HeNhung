@@ -1,0 +1,101 @@
+#include <Wire.h>                          
+#include <LiquidCrystal_I2C.h>              
+
+#define LCD_ADDRESS 0x27                    
+#define LCD_COLUMNS 16                      
+#define LCD_ROWS 2                          
+#define DIST_ON 5                           
+#define DIST_OFF 5                          
+
+const int trigPin = 2;                     
+const int echoPin = 3;                     
+const int buzzerPin = 4;                   
+const int relayPin = 5;                    
+
+long distance = 0;                         
+long duration;                             
+int previousState = 0;                     
+
+LiquidCrystal_I2C lcd(LCD_ADDRESS, LCD_COLUMNS, LCD_ROWS); 
+
+void setup() {
+  Serial.begin(9600);                       
+  pinMode(trigPin, OUTPUT);                 
+  pinMode(echoPin, INPUT);                  
+  pinMode(buzzerPin, OUTPUT);               
+  pinMode(relayPin, OUTPUT);                
+
+  lcd.begin(LCD_COLUMNS, LCD_ROWS);         
+  lcd.backlight();                          
+
+  // Display initial status
+  displayStatus();
+}
+
+void loop() {
+  // Trigger ultrasonic sensor
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  // Read distance
+  duration = pulseIn(echoPin, HIGH);
+  distance = duration * 0.034 / 2;
+
+  // Display distance and pump status
+  lcd.setCursor(0, 0); 
+  lcd.print("Dist: "); 
+  lcd.print(distance); 
+  lcd.print("cm     "); // Ensure space to clear old values
+
+  lcd.setCursor(0, 1); 
+  if (distance > DIST_ON) {                
+    if (previousState == 0) {             
+      digitalWrite(relayPin, HIGH);       
+      lcd.print("Pump: ON      ");        
+      previousState = 1;                  
+
+      // Sound buzzer
+      buzz();
+    }
+  } else if (distance <= DIST_OFF) {       
+    if (previousState == 1) {             
+      digitalWrite(relayPin, LOW);        
+      lcd.print("Pump: OFF     ");        
+      previousState = 0;                  
+    }
+  }
+
+  delay(1000);                             
+}
+
+// Display initial status when starting
+void displayStatus() {
+  lcd.setCursor(0, 0);
+  lcd.print("Dist: "); 
+  lcd.print(distance); 
+  lcd.print("cm     "); 
+
+  lcd.setCursor(0, 1);
+  if (distance > DIST_ON) {               
+    lcd.print("Pump: ON      ");         
+    previousState = 1;                    
+  } else {                                
+    lcd.print("Pump: OFF     ");         
+    previousState = 0;                    
+  }
+
+  delay(1000); // Wait 2 seconds
+}
+
+// Sound the buzzer
+void buzz() {
+  for (int i = 0; i < 2; i++) {
+    digitalWrite(buzzerPin, HIGH);
+    delay(300);
+    digitalWrite(buzzerPin, LOW);
+    delay(300);
+  }
+}
